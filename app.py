@@ -62,22 +62,30 @@ def model_prediction(image, model_dir, device_id, threshold):
     value = prediction[0][label]/2
     if label == 1 and value > threshold:
         #print("Image '{}' is Real Face. Score: {:.2f}.".format(image_name, value))
-        #result_text = "Real Score: {:.2f}".format(value)
-        #color = (0, 255, 0)
-        label = 1
+        result_text = "Real Score: {:.2f}".format(value)
+        color = (0, 255, 0)
+        label = 'real'
     else:
         #print("Image '{}' is Fake Face. Score: {:.2f}.".format(image_name, value))
-        #result_text = "Fake Score: {:.2f}".format(value)
-        #color = (0, 0, 255)
-        label = 0
+        result_text = "Fake Score: {:.2f}".format(value)
+        color = (0, 0, 255)
+        label = 'fake'
     #print("Prediction cost {:.2f} s".format(test_speed))
-    #cv2.rectangle(image,(image_bbox[0], image_bbox[1]),(image_bbox[0] + image_bbox[2], image_bbox[1] + image_bbox[3]),color, 2)
-    #cv2.putText(image,result_text,(image_bbox[0], image_bbox[1] - 5),cv2.FONT_HERSHEY_COMPLEX, 1.0*image.shape[0]/1024, color)
+    cv2.rectangle(
+        image,
+        (image_bbox[0], image_bbox[1]),
+        (image_bbox[0] + image_bbox[2], image_bbox[1] + image_bbox[3]),
+        color, 2)
+    cv2.putText(
+        image,
+        result_text,
+        (image_bbox[0], image_bbox[1] - 5),
+        cv2.FONT_HERSHEY_COMPLEX, 1.0*image.shape[0]/1024, color)
     #print(prediction)
     #format_ = os.path.splitext(image_name)[-1]
     #result_image_name = image_name.replace(format_, "_result" + format_)
     #cv2.imwrite(SAMPLE_IMAGE_PATH + result_image_name, image)
-    return label, value
+    return image
 
 model_dir = 'resources/anti_spoof_models'
 
@@ -92,9 +100,11 @@ class Process(Resource):
             content = request.json
             #print('here')
             img = np.array(Image.open(BytesIO(base64.b64decode(content['data']))))
-            label, value = model_prediction(cv2.cvtColor(img,cv2.COLOR_BGR2RGB),model_dir,0,0.0)
-            print({'result': label, 'confidence': value})
-            return {'result': label, 'confidence': value}
+            image = model_prediction(cv2.cvtColor(img,cv2.COLOR_BGR2RGB),model_dir,0,0.0)
+            retval, buffer = cv2.imencode('.jpg', image)
+            jpg_as_text = base64.b64encode(buffer)
+            print("Success")
+            return {"image_string":jpg_as_text}
 
 api.add_resource(Process, "/process")
 app.run(debug=False, host = '0.0.0.0')
